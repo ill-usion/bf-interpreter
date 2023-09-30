@@ -88,7 +88,7 @@ public:
                 break;
 
             case BFInstruction::OUT_BYTE:
-                m_output_stream << (char)*m_ptr;
+                m_output_stream << *m_ptr;
                 break;
 
             case BFInstruction::READ_BYTE:
