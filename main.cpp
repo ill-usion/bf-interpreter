@@ -2,8 +2,8 @@
 #include <filesystem>
 #include <fstream>
 #include <utility>
-
-using Byte = unsigned char;
+#include <vector>
+#include <ranges>
 
 enum class BFInstruction
 {
@@ -22,6 +22,7 @@ enum class BFInstruction
 class BFInterpreter
 {
 public:
+    using Byte = unsigned char;
     static constexpr std::size_t BF_PTR_SIZE = 30'000;
 
 private:
@@ -30,11 +31,13 @@ private:
     Byte m_tape[BFInterpreter::BF_PTR_SIZE];
     Byte *m_ptr;
 
-    std::ifstream m_file;
     std::string_view m_input_file_path;
 
     std::istream &m_input_stream;
     std::ostream &m_output_stream;
+
+    std::vector<BFInstruction> m_insts;
+    std::vector<BFInstruction>::iterator m_insts_iter;
 
 public:
     BFInterpreter(std::string_view input_file,
@@ -50,10 +53,11 @@ public:
             exit(1);
         }
 
-        m_file.open(std::string{m_input_file_path});
 
         std::fill(std::begin(m_tape), std::end(m_tape), 0);
         m_ptr = m_tape;
+
+        parse_insts();
 
         m_inst = BFInstruction::COMMENT;
     }
@@ -118,6 +122,37 @@ public:
     }
 
 private:
+    void parse_insts()
+    {
+        std::ifstream file;
+        file.open(std::string{m_input_file_path}, std::ifstream::binary);
+        file.seekg(0, std::ios::end);
+
+        std::vector<char> bf_code;
+        std::streampos file_length(file.tellg());
+        if (!file_length)
+            return;
+
+        file.seekg(0, std::ios::beg);
+        bf_code.resize(static_cast<std::size_t>(file_length));
+        // +1 for end of program instruction
+        m_insts.resize(static_cast<std::size_t>(file_length) + 1, BFInstruction::COMMENT);
+        file.read(&bf_code.front(), static_cast<std::size_t>(file_length));
+
+        BFInstruction next;
+        for (const auto &[i, c] : std::views::enumerate(bf_code))
+        {
+            next = to_inst(c);
+            if (next == BFInstruction::COMMENT)
+                continue;
+
+            m_insts[static_cast<std::size_t>(i)] = std::move(next);
+        }
+
+        m_insts.push_back(BFInstruction::END_OF_PROGRAM);
+        m_insts_iter = m_insts.begin() - 1;
+    }
+
     void skip_loop()
     {
         if (m_inst == BFInstruction::WHILE_BEGIN)
@@ -152,28 +187,12 @@ private:
 
     [[nodiscard]] inline BFInstruction next_inst()
     {
-        BFInstruction inst = BFInstruction::COMMENT;
-        while (inst == BFInstruction::COMMENT)
-        {
-            if (m_file.eof())
-            {
-                return BFInstruction::END_OF_PROGRAM;
-            }
-
-            inst = to_inst(static_cast<char>(m_file.get()));
-        }
-
-        return inst;
+        return m_insts_iter == m_insts.end() ? *m_insts_iter : *++m_insts_iter;
     }
 
     [[nodiscard]] inline BFInstruction prev_inst()
     {
-        if (m_file.eof())
-            m_file.clear(); // clear eof bit
-
-        m_file.seekg(-2, std::ios::cur);
-
-        return to_inst(static_cast<char>(m_file.get()));
+        return m_insts_iter == m_insts.begin() ? *m_insts_iter : *--m_insts_iter;
     }
 
     [[nodiscard]] BFInstruction to_inst(char c) noexcept
