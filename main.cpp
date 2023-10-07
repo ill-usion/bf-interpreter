@@ -53,7 +53,6 @@ public:
             exit(1);
         }
 
-
         std::fill(std::begin(m_tape), std::end(m_tape), 0);
         m_ptr = m_tape;
 
@@ -149,7 +148,7 @@ private:
             m_insts[static_cast<std::size_t>(i)] = std::move(next);
         }
 
-        m_insts.push_back(BFInstruction::END_OF_PROGRAM);
+        m_insts[file_length] = BFInstruction::END_OF_PROGRAM;
         m_insts_iter = m_insts.begin() - 1;
     }
 
