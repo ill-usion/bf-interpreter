@@ -1,3 +1,3 @@
-# bf-interpreter
+<h1 align="center">BrainF**k Interpreter</h1>
 
-![](https://github.com/cmd420/bf-interpreter/actions/workflows/cmake-single-platform.yml/badge.svg)
+A simple bf interpreter written in C++
